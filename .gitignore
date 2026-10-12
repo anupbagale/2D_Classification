@@ -1,0 +1,5 @@
+data/
+Data/
+results/**/*.keras
+__pycache__/
+.ipynb_checkpoints/
