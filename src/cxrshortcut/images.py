@@ -14,11 +14,11 @@ DEFAULT_LUNG_BOX = (0.10, 0.85, 0.12, 0.88)
 AUTOTUNE = tf.data.AUTOTUNE
 
 
-def load_image(path, size: int) -> tf.Tensor:
-    """Read any supported image as grayscale, resize to size x size, repeat to 3 channels.
+def load_gray(path, size: int) -> tf.Tensor:
+    """Read any supported image, convert to grayscale and resize: uint8 (size, size, 1).
 
-    Returns float32 values in [0, 255]. Grayscale first means RGB vs grayscale
-    files (a possible source difference between classes) look the same to the model.
+    Grayscale first means RGB vs grayscale files (a possible source difference
+    between classes) look the same to the model. uint8 keeps the in-memory cache small.
     """
     raw = tf.io.read_file(path)
     # Decode in the file's own channel layout (TensorFlow refuses channels=1 for
@@ -30,10 +30,19 @@ def load_image(path, size: int) -> tf.Tensor:
         lambda: img[..., :1],
     )
     img = tf.image.resize(img, (size, size), antialias=True)
-    img = tf.clip_by_value(img, 0.0, 255.0)
-    img = tf.image.grayscale_to_rgb(img)
-    img.set_shape((size, size, 3))
+    img = tf.cast(tf.round(tf.clip_by_value(img, 0.0, 255.0)), tf.uint8)
+    img.set_shape((size, size, 1))
     return img
+
+
+def gray_to_model_input(img) -> tf.Tensor:
+    """uint8 (..., H, W, 1) -> float32 (..., H, W, 3) in [0, 255]."""
+    return tf.image.grayscale_to_rgb(tf.cast(img, tf.float32))
+
+
+def load_image(path, size: int) -> tf.Tensor:
+    """Model-ready image: float32 (size, size, 3) in [0, 255]."""
+    return gray_to_model_input(load_gray(path, size))
 
 
 _JPEG_PNG_MAGIC = (b"\xff\xd8\xff", b"\x89PNG")
@@ -104,11 +113,14 @@ def make_dataset(
     occlude: bool = False,
     box=DEFAULT_LUNG_BOX,
     seed: int = 42,
+    cache: bool = True,
 ) -> tf.data.Dataset:
     """Batches of (images, one-hot labels).
 
-    With ``training=False`` the order matches ``df`` exactly, so predictions can
-    be joined back to the rows.
+    With ``cache=True`` the decoded, resized grayscale images are kept in memory
+    after the first pass (about 50 KB per image at 224 px), so later epochs skip
+    reading and resizing the full-size files. With ``training=False`` the order
+    matches ``df`` exactly, so predictions can be joined back to the rows.
     """
     index = {c: i for i, c in enumerate(classes)}
     labels = df["label"].map(index)
@@ -117,12 +129,15 @@ def make_dataset(
         raise ValueError(f"Labels not in classes: {unknown}")
 
     paths = df["path"].astype(str).tolist()
+    n_classes = len(classes)
     ds = tf.data.Dataset.from_tensor_slices((paths, labels.astype("int32").to_numpy()))
+    ds = ds.map(lambda p, y: (load_gray(p, size), y), num_parallel_calls=AUTOTUNE)
+    if cache:
+        ds = ds.cache()
     if training:
         ds = ds.shuffle(len(paths), seed=seed, reshuffle_each_iteration=True)
-    n_classes = len(classes)
     ds = ds.map(
-        lambda p, y: (load_image(p, size), tf.one_hot(y, n_classes)),
+        lambda x, y: (gray_to_model_input(x), tf.one_hot(y, n_classes)),
         num_parallel_calls=AUTOTUNE,
     )
     ds = ds.batch(batch_size)

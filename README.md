@@ -38,7 +38,7 @@ them ready for clinical use ([Roberts et al., 2021](https://doi.org/10.1038/s422
 ## Results
 
 > **Pending the first full run.** Open the Colab notebook above and run all cells
-> (about an hour on a free T4 GPU). Every number is generated into
+> (about 1–2 hours on a free T4 GPU). Every number is generated into
 > [`results/summary.md`](results/summary.md) by `scripts/make_report.py`; this section
 > will summarise them.
 
