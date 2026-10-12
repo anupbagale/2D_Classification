@@ -1,0 +1,7 @@
+tensorflow>=2.16
+numpy
+pandas
+scikit-learn
+pillow
+matplotlib
+pytest

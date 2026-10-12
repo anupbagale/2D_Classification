@@ -1,0 +1,108 @@
+"""Image loading, augmentation and lung-region occlusion as tf.data pipelines."""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import keras
+
+# Approximate lung region as fractions of image height/width: (top, bottom, left, right).
+# A fixed box is a crude stand-in for real lung masks; see the README's limitations.
+DEFAULT_LUNG_BOX = (0.10, 0.85, 0.12, 0.88)
+
+AUTOTUNE = tf.data.AUTOTUNE
+
+
+def load_image(path, size: int) -> tf.Tensor:
+    """Read any supported image as grayscale, resize to size x size, repeat to 3 channels.
+
+    Returns float32 values in [0, 255]. Grayscale first means RGB vs grayscale
+    files (a possible source difference between classes) look the same to the model.
+    """
+    raw = tf.io.read_file(path)
+    img = tf.io.decode_image(raw, channels=1, expand_animations=False)
+    img = tf.image.resize(img, (size, size), antialias=True)
+    img = tf.clip_by_value(img, 0.0, 255.0)
+    img = tf.image.grayscale_to_rgb(img)
+    img.set_shape((size, size, 3))
+    return img
+
+
+def lung_box_mask(height: int, width: int, box=DEFAULT_LUNG_BOX) -> np.ndarray:
+    """1 inside the lung box, 0 outside, shape (height, width)."""
+    top, bottom, left, right = box
+    if not (0 <= top < bottom <= 1 and 0 <= left < right <= 1):
+        raise ValueError(f"Invalid box {box}")
+    mask = np.zeros((height, width), dtype=np.float32)
+    r0, r1 = int(round(top * height)), int(round(bottom * height))
+    c0, c1 = int(round(left * width)), int(round(right * width))
+    mask[r0:r1, c0:c1] = 1.0
+    return mask
+
+
+def occlude_lungs(images, box=DEFAULT_LUNG_BOX):
+    """Black out the lung box. Works on (H, W, C) or (N, H, W, C) arrays/tensors."""
+    h, w = images.shape[-3], images.shape[-2]
+    keep = (1.0 - lung_box_mask(h, w, box))[..., None]
+    return images * keep
+
+
+def build_augmenter(seed: int | None = None) -> keras.Sequential:
+    """Mild, anatomically plausible augmentation.
+
+    No flips: a chest X-ray is never upside down, and a left-right flip moves
+    the heart to the wrong side.
+    """
+    return keras.Sequential(
+        [
+            keras.layers.RandomRotation(0.02, fill_mode="constant", seed=seed),
+            keras.layers.RandomZoom(0.1, fill_mode="constant", seed=seed),
+            keras.layers.RandomTranslation(0.05, 0.05, fill_mode="constant", seed=seed),
+            keras.layers.RandomContrast(0.1, seed=seed),
+        ],
+        name="cxr_augment",
+    )
+
+
+def make_dataset(
+    df: pd.DataFrame,
+    classes: list[str],
+    size: int = 224,
+    batch_size: int = 32,
+    training: bool = False,
+    occlude: bool = False,
+    box=DEFAULT_LUNG_BOX,
+    seed: int = 42,
+) -> tf.data.Dataset:
+    """Batches of (images, one-hot labels).
+
+    With ``training=False`` the order matches ``df`` exactly, so predictions can
+    be joined back to the rows.
+    """
+    index = {c: i for i, c in enumerate(classes)}
+    labels = df["label"].map(index)
+    if labels.isna().any():
+        unknown = sorted(set(df.loc[labels.isna(), "label"]))
+        raise ValueError(f"Labels not in classes: {unknown}")
+
+    paths = df["path"].astype(str).tolist()
+    ds = tf.data.Dataset.from_tensor_slices((paths, labels.astype("int32").to_numpy()))
+    if training:
+        ds = ds.shuffle(len(paths), seed=seed, reshuffle_each_iteration=True)
+    n_classes = len(classes)
+    ds = ds.map(
+        lambda p, y: (load_image(p, size), tf.one_hot(y, n_classes)),
+        num_parallel_calls=AUTOTUNE,
+    )
+    ds = ds.batch(batch_size)
+    if training:
+        augment = build_augmenter(seed)
+        ds = ds.map(
+            lambda x, y: (tf.clip_by_value(augment(x, training=True), 0.0, 255.0), y),
+            num_parallel_calls=AUTOTUNE,
+        )
+    if occlude:
+        keep = tf.constant((1.0 - lung_box_mask(size, size, box))[None, ..., None])
+        ds = ds.map(lambda x, y: (x * keep, y), num_parallel_calls=AUTOTUNE)
+    return ds.prefetch(AUTOTUNE)
