@@ -21,12 +21,42 @@ def load_image(path, size: int) -> tf.Tensor:
     files (a possible source difference between classes) look the same to the model.
     """
     raw = tf.io.read_file(path)
-    img = tf.io.decode_image(raw, channels=1, expand_animations=False)
+    # Decode in the file's own channel layout (TensorFlow refuses channels=1 for
+    # BMP and GIF), then reduce to one gray channel: drop alpha, convert colour.
+    img = tf.io.decode_image(raw, channels=0, expand_animations=False)
+    img = tf.cond(
+        tf.shape(img)[-1] >= 3,
+        lambda: tf.image.rgb_to_grayscale(img[..., :3]),
+        lambda: img[..., :1],
+    )
     img = tf.image.resize(img, (size, size), antialias=True)
     img = tf.clip_by_value(img, 0.0, 255.0)
     img = tf.image.grayscale_to_rgb(img)
     img.set_shape((size, size, 3))
     return img
+
+
+_JPEG_PNG_MAGIC = (b"\xff\xd8\xff", b"\x89PNG")
+
+
+def find_unreadable(df: pd.DataFrame) -> list[str]:
+    """Paths TensorFlow cannot decode (e.g. 1-bit BMPs or corrupt files).
+
+    JPEG and PNG files (recognised by their first bytes, not their extension)
+    are trusted; anything else is test-decoded. This takes seconds, and stops a
+    single odd file from crashing a run after training.
+    """
+    bad = []
+    for path in df["path"]:
+        with open(path, "rb") as f:
+            head = f.read(4)
+        if head.startswith(_JPEG_PNG_MAGIC):
+            continue
+        try:
+            load_image(str(path), 8)
+        except (tf.errors.OpError, ValueError):
+            bad.append(str(path))
+    return bad
 
 
 def lung_box_mask(height: int, width: int, box=DEFAULT_LUNG_BOX) -> np.ndarray:

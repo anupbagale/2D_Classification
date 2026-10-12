@@ -18,7 +18,10 @@ from pathlib import Path
 from cxrshortcut.data import add_validation_split, class_names, counts_table, index_dataset
 from cxrshortcut.evaluate import evaluate_model
 from cxrshortcut.gradcam import gradcam_report
-from cxrshortcut.images import DEFAULT_LUNG_BOX
+import keras
+import pandas as pd
+
+from cxrshortcut.images import DEFAULT_LUNG_BOX, find_unreadable
 from cxrshortcut.models import MODEL_BUILDERS
 from cxrshortcut.train import history_summary, train_model
 from cxrshortcut.utils import run_info, save_json
@@ -64,6 +67,9 @@ def main(argv=None) -> dict:
     ap.add_argument("--val-fraction", type=float, default=0.15)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--weights", default="imagenet", help="'imagenet' or 'none' (densenet121)")
+    ap.add_argument("--reuse-model", action="store_true",
+                    help="Skip training if this experiment folder already has model.keras and "
+                         "history.csv (e.g. to redo evaluation after a crash)")
     ap.add_argument("--verbose", type=int, default=2)
     args = ap.parse_args(argv)
 
@@ -73,19 +79,33 @@ def main(argv=None) -> dict:
     weights = None if args.weights.lower() == "none" else args.weights
     box = DEFAULT_LUNG_BOX
 
-    df = add_validation_split(index_dataset(args.data_root, args.classes), args.val_fraction, args.seed)
+    df = index_dataset(args.data_root, args.classes)
+    unreadable = find_unreadable(df)
+    if unreadable:
+        print(f"WARNING: {len(unreadable)} file(s) cannot be decoded and are left out "
+              f"(listed in {out / 'unreadable_files.txt'}):")
+        for p in unreadable:
+            print("   ", p)
+        (out / "unreadable_files.txt").write_text("\n".join(unreadable) + "\n")
+        df = df[~df.path.isin(unreadable)].reset_index(drop=True)
+    df = add_validation_split(df, args.val_fraction, args.seed)
     classes = class_names(df)
     df.to_csv(out / "splits.csv", index=False)
     print("Images per class and split:\n", counts_table(df).to_string(), sep="")
     save_json(run_info(vars(args)), out / "run_info.json")
 
-    model, history = train_model(
-        args.model, df, classes, out,
-        img_size=args.img_size, batch_size=args.batch_size, epochs=args.epochs,
-        fine_tune_epochs=args.fine_tune_epochs, lr=args.lr, fine_tune_lr=args.fine_tune_lr,
-        patience=args.patience, occlude=args.occlude, box=box, seed=args.seed,
-        weights=weights, verbose=args.verbose,
-    )
+    ckpt, log = out / "model.keras", out / "history.csv"
+    if args.reuse_model and ckpt.exists() and log.exists():
+        print(f"Reusing the trained model in {out} (no training).")
+        model, history = keras.models.load_model(ckpt), pd.read_csv(log)
+    else:
+        model, history = train_model(
+            args.model, df, classes, out,
+            img_size=args.img_size, batch_size=args.batch_size, epochs=args.epochs,
+            fine_tune_epochs=args.fine_tune_epochs, lr=args.lr, fine_tune_lr=args.fine_tune_lr,
+            patience=args.patience, occlude=args.occlude, box=box, seed=args.seed,
+            weights=weights, verbose=args.verbose,
+        )
 
     test = df[df.split == "test"]
     common = dict(img_size=args.img_size, batch_size=args.batch_size, box=box,
@@ -95,6 +115,7 @@ def main(argv=None) -> dict:
         "model": args.model,
         "trained_on_occluded": args.occlude,
         "classes": classes,
+        "excluded_unreadable_files": unreadable,
         "history": history_summary(history),
         "test": evaluate_model(model, test, classes, out, tag="test", occlude=args.occlude, **common),
     }

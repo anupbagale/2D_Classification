@@ -6,6 +6,7 @@ import keras
 from cxrshortcut.images import (
     DEFAULT_LUNG_BOX,
     build_augmenter,
+    find_unreadable,
     load_image,
     lung_box_mask,
     make_dataset,
@@ -21,6 +22,32 @@ def test_load_image_any_mode_gives_3_equal_channels(tmp_path, mode):
     assert img.shape == (32, 32, 3) and img.dtype == np.float32
     assert 0 <= img.min() and img.max() <= 255
     np.testing.assert_allclose(img[..., 0], img[..., 2])
+
+
+@pytest.mark.parametrize("mode,ext", [("L", "bmp"), ("P", "bmp"), ("RGB", "bmp"), ("RGBA", "bmp"),
+                                      ("L", "gif"), ("LA", "png"), ("L", "jpg")])
+def test_load_image_bmp_gif_and_alpha(tmp_path, mode, ext):
+    # TensorFlow refuses channels=1 for BMP/GIF; the loader must still read them.
+    a = (np.random.default_rng(0).random((30, 40)) * 255).astype(np.uint8)
+    path = tmp_path / f"x_{mode}.{ext}"
+    Image.fromarray(a).convert(mode).save(path)
+    img = load_image(str(path), 16).numpy()
+    assert img.shape == (16, 16, 3)
+    assert img.std() > 10  # real content, not a blank image
+
+
+def test_find_unreadable(tmp_path):
+    import pandas as pd
+
+    a = (np.random.default_rng(0).random((30, 40)) * 255).astype(np.uint8)
+    Image.fromarray(a).save(tmp_path / "ok.png")
+    Image.fromarray(a).save(tmp_path / "ok.bmp")
+    Image.fromarray(a).save(tmp_path / "png_named.jpg", format="PNG")
+    Image.fromarray(a).convert("1").save(tmp_path / "one_bit.bmp")  # TF cannot decode 1-bit BMP
+    (tmp_path / "corrupt.bmp").write_bytes(b"BM" + b"\x00" * 40)
+    df = pd.DataFrame({"path": [str(p) for p in sorted(tmp_path.iterdir())]})
+    bad = find_unreadable(df)
+    assert sorted(bad) == sorted([str(tmp_path / "one_bit.bmp"), str(tmp_path / "corrupt.bmp")])
 
 
 def test_lung_box_mask_and_occlusion():

@@ -45,10 +45,17 @@ them ready for clinical use ([Roberts et al., 2021](https://doi.org/10.1038/s422
 ## Methods
 
 **Data.** [Chest X-ray (Covid-19 & Pneumonia)](https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia)
-on Kaggle, in three classes (COVID-19, normal, pneumonia), pre-split into train
-(5,144 images) and test (1,292) in the copy used for v1. The classes are imbalanced:
-859 of the 1,292 test images are pneumonia, so always predicting "pneumonia" already
-gives 66% accuracy. The audit prints the exact counts per class.
+on Kaggle, pre-split into train and test folders. The classes are imbalanced:
+
+| Class | Train | Test |
+|---|---|---|
+| COVID-19 | 460 | 116 |
+| Normal | 1,266 | 317 |
+| Pneumonia | 3,418 | 855 |
+| **Total** | **5,144** | **1,288** |
+
+Always predicting "pneumonia" already gives 66% test accuracy. (The copy used for v1
+had 1,292 test images; the current Kaggle download has 1,288.)
 
 **Splits.** 15% of the training images (stratified by class, fixed seed) form a
 validation set. The best epoch is chosen on validation AUC. The test set is used once,
@@ -89,7 +96,7 @@ python scripts/run_experiment.py --data-root PATH/TO/Data --model original_cnn -
 python scripts/run_experiment.py --data-root PATH/TO/Data --model densenet121 --epochs 10 --fine-tune-epochs 10 --eval-occluded
 python scripts/run_experiment.py --data-root PATH/TO/Data --model densenet121 --name densenet121_occluded --epochs 10 --fine-tune-epochs 10 --occlude
 python scripts/make_report.py
-pytest   # 36 tests on a synthetic dataset, CPU only
+pytest   # 45 tests on a synthetic dataset, CPU only
 ```
 
 `--classes COVID19 NORMAL` repeats any step as the binary task from v1.
