@@ -1,7 +1,7 @@
 # Does a COVID-19 X-ray classifier look at the lungs?
 
-[![CI](https://github.com/anupbagale/2D_Classification/actions/workflows/ci.yml/badge.svg)](https://github.com/anupbagale/2D_Classification/actions/workflows/ci.yml)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anupbagale/2D_Classification/blob/main/notebooks/run_all_colab.ipynb)
+[![CI](https://github.com/anupbagale/covid-xray-shortcut-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/anupbagale/covid-xray-shortcut-learning/actions/workflows/ci.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anupbagale/covid-xray-shortcut-learning/blob/main/notebooks/run_all_colab.ipynb)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 My first version of this project trained a small CNN on chest X-rays and reported
