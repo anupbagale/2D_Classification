@@ -1,0 +1,196 @@
+{
+  "name": "original_cnn",
+  "model": "original_cnn",
+  "trained_on_occluded": false,
+  "classes": [
+    "COVID19",
+    "NORMAL",
+    "PNEUMONIA"
+  ],
+  "excluded_unreadable_files": [],
+  "history": {
+    "epochs_run": 25,
+    "best_epoch": 25,
+    "best_val_auc": 0.9877164959907532,
+    "best_val_accuracy": 0.9391191601753236,
+    "train_accuracy_at_best": 0.9030191898345948
+  },
+  "test": {
+    "n": 1288,
+    "classes": [
+      "COVID19",
+      "NORMAL",
+      "PNEUMONIA"
+    ],
+    "accuracy": 0.9425465838509317,
+    "balanced_accuracy": 0.9426887862173291,
+    "majority_baseline_accuracy": 0.6638198757763976,
+    "macro_auc": 0.9883262818054064,
+    "per_class": {
+      "COVID19": {
+        "support": 116,
+        "sensitivity": 0.9655172413793104,
+        "specificity": 0.9974402730375427,
+        "ppv": 0.9739130434782609,
+        "f1": 0.9696969696969697,
+        "auc_one_vs_rest": 0.9994409791691186
+      },
+      "NORMAL": {
+        "support": 317,
+        "sensitivity": 0.9116719242902208,
+        "specificity": 0.9588053553038105,
+        "ppv": 0.878419452887538,
+        "f1": 0.8947368421052632,
+        "auc_one_vs_rest": 0.9820471919092157
+      },
+      "PNEUMONIA": {
+        "support": 855,
+        "sensitivity": 0.9508771929824561,
+        "specificity": 0.9284064665127021,
+        "ppv": 0.9632701421800948,
+        "f1": 0.9570335491465568,
+        "auc_one_vs_rest": 0.9834906743378847
+      }
+    },
+    "confusion_matrix": [
+      [
+        112,
+        0,
+        4
+      ],
+      [
+        1,
+        289,
+        27
+      ],
+      [
+        2,
+        40,
+        813
+      ]
+    ],
+    "ci95": {
+      "macro_auc": [
+        0.9835368940575722,
+        0.9924192073623249
+      ],
+      "balanced_accuracy": [
+        0.9248762706172294,
+        0.9572218341831644
+      ],
+      "COVID19_sensitivity": [
+        0.9274193548387096,
+        0.992
+      ],
+      "COVID19_specificity": [
+        0.9940270485108369,
+        1.0
+      ]
+    },
+    "positive_class": "COVID19"
+  },
+  "test_lungs_occluded": {
+    "n": 1288,
+    "classes": [
+      "COVID19",
+      "NORMAL",
+      "PNEUMONIA"
+    ],
+    "accuracy": 0.6195652173913043,
+    "balanced_accuracy": 0.4849650520175004,
+    "majority_baseline_accuracy": 0.6638198757763976,
+    "macro_auc": 0.8149190505933056,
+    "per_class": {
+      "COVID19": {
+        "support": 116,
+        "sensitivity": 0.008620689655172414,
+        "specificity": 1.0,
+        "ppv": 1.0,
+        "f1": 0.017094017094017096,
+        "auc_one_vs_rest": 0.8733670707308462
+      },
+      "NORMAL": {
+        "support": 317,
+        "sensitivity": 0.8170347003154574,
+        "specificity": 0.568486096807415,
+        "ppv": 0.38200589970501475,
+        "f1": 0.5206030150753769,
+        "auc_one_vs_rest": 0.7656258629595818
+      },
+      "PNEUMONIA": {
+        "support": 855,
+        "sensitivity": 0.6292397660818714,
+        "specificity": 0.836027713625866,
+        "ppv": 0.8834154351395731,
+        "f1": 0.7349726775956285,
+        "auc_one_vs_rest": 0.8057642180894884
+      }
+    },
+    "confusion_matrix": [
+      [
+        1,
+        102,
+        13
+      ],
+      [
+        0,
+        259,
+        58
+      ],
+      [
+        0,
+        317,
+        538
+      ]
+    ],
+    "ci95": {
+      "macro_auc": [
+        0.7946067168692746,
+        0.8347596861819183
+      ],
+      "balanced_accuracy": [
+        0.4659198255561959,
+        0.504161819982823
+      ],
+      "COVID19_sensitivity": [
+        0.0,
+        0.02830188679245283
+      ],
+      "COVID19_specificity": [
+        1.0,
+        1.0
+      ]
+    },
+    "positive_class": "COVID19"
+  },
+  "gradcam": {
+    "box": [
+      0.1,
+      0.85,
+      0.12,
+      0.88
+    ],
+    "box_area_fraction": 0.5691964030265808,
+    "mean_lung_fraction": 0.5608945087934679,
+    "per_class": {
+      "COVID19": {
+        "n": 40,
+        "n_nonzero_heatmaps": 40,
+        "mean_lung_fraction": 0.6048967628383684,
+        "median_lung_fraction": 0.600145548779365
+      },
+      "NORMAL": {
+        "n": 40,
+        "n_nonzero_heatmaps": 40,
+        "mean_lung_fraction": 0.6047723384559068,
+        "median_lung_fraction": 0.6216235705913105
+      },
+      "PNEUMONIA": {
+        "n": 40,
+        "n_nonzero_heatmaps": 40,
+        "mean_lung_fraction": 0.47301442508612873,
+        "median_lung_fraction": 0.4258638756699361
+      }
+    }
+  }
+}

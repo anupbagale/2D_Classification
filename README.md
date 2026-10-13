@@ -13,6 +13,12 @@ model had learned anything about the lungs at all.
 This version asks that question directly: **when a model classifies these X-rays,
 is it reading the lungs, or is it recognising where each image came from?**
 
+**Short answer:** the lungs are not needed. A DenseNet121 that never sees the lung
+region still tells the three classes apart with an AUC of 0.983, almost as well as with
+the lungs visible (0.994). A classifier that sees only file size and format does
+equally well (0.989). The high accuracy on this dataset is therefore not evidence that
+a model detects COVID-19.
+
 ## Why this matters
 
 Public COVID-19 X-ray datasets were assembled quickly during the pandemic, often by
@@ -37,10 +43,93 @@ them ready for clinical use ([Roberts et al., 2021](https://doi.org/10.1038/s422
 
 ## Results
 
-> **Pending the first full run.** Open the Colab notebook above and run all cells
-> (about 1–2 hours on a free T4 GPU). Every number is generated into
-> [`results/summary.md`](results/summary.md) by `scripts/make_report.py`; this section
-> will summarise them.
+All numbers are on the 1,288 untouched test images. Full tables, confusion matrices
+and per-image predictions: [`results/summary.md`](results/summary.md). Brackets are 95%
+bootstrap confidence intervals.
+
+### 1. The models score highly, measured properly
+
+| Model | Accuracy | Balanced accuracy | Macro AUC | COVID-19 sensitivity | COVID-19 specificity |
+|---|---|---|---|---|---|
+| Majority-class baseline | 0.664 | 0.333 | 0.5 | 0 | 1 |
+| Original v1 CNN | 0.943 | 0.943 (0.925–0.957) | 0.988 (0.984–0.992) | 0.966 (0.927–0.992) | 0.997 (0.994–1.000) |
+| DenseNet121 | **0.953** | **0.960** (0.946–0.973) | **0.994** (0.991–0.996) | 0.966 (0.930–0.993) | 1.000 (1.000–1.000) |
+
+DenseNet121 found 112 of 116 COVID-19 cases and labelled none of the 1,172 other images
+as COVID-19. Its main error was calling 47 pneumonia images normal. The v1 CNN, now
+evaluated on a clean test set, reaches 94.3%; the 92.8% reported in v1 was not
+inflated much by reusing the test set during training.
+
+These are the kind of numbers often reported as "AI detects COVID-19 from X-rays".
+The next two results show why they cannot be read that way here.
+
+### 2. The labels can be read off the files
+
+A random forest that sees only file metadata (size, aspect ratio, file size, format,
+colour mode, brightness) and nothing of the image content reaches a **macro AUC of 0.989**
+(balanced accuracy 0.899). The classes clearly differ in how their files were produced:
+
+| Class | Median size (w × h) | Median file size | Format | Colour mode |
+|---|---|---|---|---|
+| COVID-19 | 1166 × 1028 | 355 KB | JPEG 63%, PNG 34%, BMP 3% | RGB 65%, gray 28%, RGBA 6% |
+| Normal | 1615 × 1322 | 535 KB | JPEG 100% | RGB 100% |
+| Pneumonia | 1144 × 776 | 143 KB | JPEG 100% | RGB 100% |
+
+The mix of formats in the COVID-19 class suggests several sources, while normal and
+pneumonia images are uniform but differ in size and shape. The Kaggle page does not
+document where each class came from. The CNNs never see file size or format (every
+image is converted to grayscale and resized), but the differences point to different
+sources, and those usually leave traces in the pixels too: framing, exposure, patient
+population, burned-in markers. Pneumonia images are typically much wider than tall
+(1144 × 776, against 1615 × 1322 for normal), so squeezing them to a square distorts
+body shape in a class-specific way. That is one possible cue; it was not tested
+separately here.
+
+### 3. The model does not need the lungs
+
+DenseNet121 trained **and** tested with the lung region blacked out (57% of the image
+hidden, leaving what is typically the neck, shoulders, sides of the chest, upper
+abdomen and any markers):
+
+| | Lungs visible | Lungs hidden |
+|---|---|---|
+| Accuracy | 0.953 | 0.900 |
+| Macro AUC | 0.994 | **0.983** (0.979–0.987) |
+| COVID-19 sensitivity | 0.966 | 0.862 (0.797–0.922) |
+| COVID-19 false positives (of 1,172) | 0 | 2 |
+
+Hiding the lungs costs very little. Most of what separates these classes, COVID-19
+included, is available outside the lung region. A model that does this well without the
+lungs cannot be trusted to have learned lung pathology when it does see them.
+Also worth noting: COVID-19 pneumonia and other viral pneumonias often look alike on
+X-rays, so near-zero confusion between COVID-19 and pneumonia is itself a warning sign.
+
+### 4. The softer evidence points the same way
+
+- **Hiding the lungs at test time** from the normally trained models drops macro AUC
+  to 0.696 (DenseNet121) and 0.815 (v1 CNN), and balanced accuracy to near chance
+  (0.339 and 0.485). This shows the models *use* the lung region when it is there, but
+  it is weaker evidence than result 3: a black box is something these models never saw
+  in training, so part of the drop is simply confusion at an unfamiliar image.
+- **Grad-CAM**: 66% of DenseNet121's attention falls inside the lung box, against 57%
+  for attention spread evenly, a mild preference. The v1 CNN shows none (56%), and for
+  pneumonia images it looks *outside* the box more than chance would (47% inside).
+
+![Grad-CAM examples for DenseNet121](results/densenet121/gradcam_examples.png)
+
+### 5. No train/test leakage
+
+The test set is clean. There are 32 groups of byte-identical files, but each stays
+within one split and one label. No test image has an identical or near-identical copy
+in the training data.
+
+### Conclusion
+
+On this dataset, near-perfect COVID-19 classification is easy and says little about
+COVID-19. The classes can be separated from file metadata alone, and from the image
+with the lungs hidden. To show that a model detects the disease, it would need to be
+tested on images from a different hospital than the training data, ideally with COVID-19
+and non-COVID images collected the same way, and with real lung masks instead of a box.
 
 ## Methods
 
@@ -135,22 +224,26 @@ results/         generated metrics, predictions and figures
 ## Limitations
 
 - **The lung region is a rectangle, not a segmentation.** It includes the heart and
-  mediastinum and can miss lung tissue in unusually positioned images. Real lung masks
-  from a segmentation model would make the occlusion tests sharper.
+  mediastinum, and in some images parts of the lungs (the tops, the bases, the outer
+  edges) fall outside it. So the lungs-hidden model may still see a little lung tissue.
+  It is unlikely to explain an AUC of 0.983, but real lung masks from a segmentation
+  model would make this test sharper.
 - **No patient IDs.** The dataset does not identify patients, so images of the same
   patient may sit in both train and test. The near-duplicate check catches only very
   similar images.
 - **Grad-CAM is coarse** (a 7×7 grid for DenseNet121 at 224 px) and is not a reliable
   explanation on its own. It is supporting evidence next to the occlusion tests.
-- **One dataset, one seed.** The results describe what this dataset allows a model to
-  learn. They say nothing about clinical performance, and none of these models should
-  be used for diagnosis.
+- **One dataset, one seed.** Each model was trained once. The confidence intervals cover
+  test-set sampling, not training randomness. The results describe what this dataset
+  allows a model to learn. They say nothing about clinical performance, and none of
+  these models should be used for diagnosis.
 
 ## Version history
 
 - **v2 (October 2026)**: rebuilt as a shortcut-learning study: dataset audit, held-out
   validation split, imbalance-aware metrics with confidence intervals, pretrained
-  DenseNet121, lung-occlusion tests, Grad-CAM, tests and CI.
+  DenseNet121, lung-occlusion tests, Grad-CAM, tests and CI. Finding: the classes can
+  be separated without the lungs (AUC 0.983).
 - **v1 (June 2024)**: two Colab notebooks, kept in [`notebooks/original/`](notebooks/original/).
   What was wrong with them, and what v2 changes:
   - The test folder was passed as `validation_data`, so it guided training. There was no untouched test set.

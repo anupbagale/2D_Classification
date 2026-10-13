@@ -1,0 +1,154 @@
+{
+  "classes": [
+    "COVID19",
+    "NORMAL",
+    "PNEUMONIA"
+  ],
+  "counts": {
+    "COVID19": {
+      "train": 391,
+      "val": 69,
+      "test": 116
+    },
+    "NORMAL": {
+      "train": 1076,
+      "val": 190,
+      "test": 317
+    },
+    "PNEUMONIA": {
+      "train": 2905,
+      "val": 513,
+      "test": 855
+    }
+  },
+  "metadata_shortcut_test": {
+    "metrics": {
+      "n": 1288,
+      "classes": [
+        "COVID19",
+        "NORMAL",
+        "PNEUMONIA"
+      ],
+      "accuracy": 0.9440993788819876,
+      "balanced_accuracy": 0.8989248642231175,
+      "majority_baseline_accuracy": 0.6638198757763976,
+      "macro_auc": 0.9889429054100103,
+      "per_class": {
+        "COVID19": {
+          "support": 116,
+          "sensitivity": 0.8017241379310345,
+          "specificity": 0.9965870307167235,
+          "ppv": 0.9587628865979382,
+          "f1": 0.8732394366197184,
+          "auc_one_vs_rest": 0.9914602212545603
+        },
+        "NORMAL": {
+          "support": 317,
+          "sensitivity": 0.9242902208201893,
+          "specificity": 0.9701338825952626,
+          "ppv": 0.9099378881987578,
+          "f1": 0.9170579029733958,
+          "auc_one_vs_rest": 0.9894251917597716
+        },
+        "PNEUMONIA": {
+          "support": 855,
+          "sensitivity": 0.9707602339181286,
+          "specificity": 0.9099307159353349,
+          "ppv": 0.9551208285385501,
+          "f1": 0.9628770301624129,
+          "auc_one_vs_rest": 0.9859433032156991
+        }
+      },
+      "confusion_matrix": [
+        [
+          93,
+          6,
+          17
+        ],
+        [
+          2,
+          293,
+          22
+        ],
+        [
+          2,
+          23,
+          830
+        ]
+      ]
+    },
+    "feature_importance": {
+      "bytes_per_pixel": 0.1818,
+      "aspect": 0.166,
+      "file_kb": 0.1509,
+      "width": 0.0923,
+      "height": 0.0892,
+      "format_JPEG": 0.051,
+      "format_PNG": 0.0501,
+      "frac_black": 0.0499,
+      "std": 0.0472,
+      "mode_RGB": 0.0341
+    },
+    "per_class_summary": {
+      "COVID19": {
+        "n": 576,
+        "median_width": 1165.5,
+        "median_height": 1028.0,
+        "median_aspect": 1.068,
+        "median_file_kb": 354.6,
+        "mean_intensity": 134.0,
+        "format_share": {
+          "JPEG": 0.627,
+          "PNG": 0.344,
+          "BMP": 0.03
+        },
+        "mode_share": {
+          "RGB": 0.653,
+          "L": 0.278,
+          "RGBA": 0.064,
+          "P": 0.005
+        }
+      },
+      "NORMAL": {
+        "n": 1583,
+        "median_width": 1615.0,
+        "median_height": 1322.0,
+        "median_aspect": 1.215,
+        "median_file_kb": 534.7,
+        "mean_intensity": 124.6,
+        "format_share": {
+          "JPEG": 1.0
+        },
+        "mode_share": {
+          "RGB": 1.0
+        }
+      },
+      "PNEUMONIA": {
+        "n": 4273,
+        "median_width": 1144.0,
+        "median_height": 776.0,
+        "median_aspect": 1.47,
+        "median_file_kb": 143.1,
+        "mean_intensity": 124.6,
+        "format_share": {
+          "JPEG": 1.0
+        },
+        "mode_share": {
+          "RGB": 1.0
+        }
+      }
+    }
+  },
+  "duplicates": {
+    "exact_duplicate_groups": 32,
+    "exact_duplicate_extra_files": 34,
+    "exact_groups_spanning_train_and_test": 0,
+    "exact_groups_with_conflicting_labels": 0,
+    "near_duplicate_max_distance_bits": 6,
+    "near_duplicate_hash_bits": 256,
+    "test_images_with_near_duplicate_in_train": 0,
+    "test_images_total": 1288,
+    "near_duplicate_pairs": 0,
+    "near_duplicate_pairs_label_mismatch": 0
+  }
+}
