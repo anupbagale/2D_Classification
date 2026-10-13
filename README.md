@@ -279,5 +279,7 @@ results/         generated metrics, predictions and figures
 
 ## License
 
-Code: [MIT](LICENSE). The images are not included; they are subject to the terms of the
-Kaggle dataset and its original sources.
+Code: [MIT](LICENSE). The X-ray dataset is not included in this repository; download it from
+[Kaggle](https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia).
+The example figures in `results/` show a small number of X-rays from that dataset, which
+remain subject to the terms of the Kaggle dataset and its original sources.
